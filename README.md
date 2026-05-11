@@ -30,6 +30,23 @@ HubSpot ─► feeder ─► Postgres signal store ─► Claude rollup (cached 
 **Phase 2 (this release)** adds contact_signal, activity_signal, quote_signal,
 deal stage history, per-company computed metrics, and multi-zoom AI summaries.
 
+**UI polish pass (`feat/ui-polish-pass`)** — hard-pinned Streamlit light theme,
+centralized design system (`src/account_intel/ui/_theme.py`), every card sets
+both `background` AND `color` explicitly (no white-on-white), reorganized
+internal view for fast scanning (top bar + TL;DR + KPI row + 2-column hot
+signals/AI layout), tightened client hero with `Last updated` timestamp.
+
+---
+
+## Demo screenshots
+
+| | |
+|---|---|
+| Internal view (port 8502) | ![internal](screenshots/internal.png) |
+| Client portal (port 8503) | ![client](screenshots/client.png) |
+
+Drop your captures into `screenshots/internal.png` and `screenshots/client.png`.
+
 ---
 
 ## Quick demo on localhost

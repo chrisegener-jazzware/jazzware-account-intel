@@ -1,8 +1,7 @@
-"""Client-facing Streamlit UI (JAZ-125, expanded). Port 8503.
+"""Client-facing Streamlit UI (JAZ-125, JAZ-130). Port 8503.
 
-Branded customer portal demo. Pulls from the same Postgres signal store as
-internal view but filtered to a "what would a client see" surface, plus
-AI-generated client-safe TL;DR + insights + properties + roadmap.
+Premium customer portal demo. Tightened hero, explicit text colors everywhere,
+bigger numbers, more whitespace, polished card system.
 """
 from __future__ import annotations
 
@@ -12,6 +11,15 @@ import pandas as pd
 import streamlit as st
 
 from account_intel.ui._common import api_get, fmt_days, fmt_iso, parse_iso
+from account_intel.ui._theme import (
+    NAVY_900,
+    SLATE_500,
+    SLATE_700,
+    SLATE_900,
+    ai_subcard,
+    inject_theme,
+    kpi_row,
+)
 
 st.set_page_config(
     page_title="Jazzware Customer Portal",
@@ -20,59 +28,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- styling ------------------------------------------------------------------
+inject_theme()
 
+# Client app gets a slightly tighter container
 st.markdown(
-    """
-    <style>
-      .block-container { padding-top: 1rem; max-width: 1200px; }
-      h1, h2, h3, h4 { color: #0b1d3a; }
-      [data-testid="stMetric"] {
-        background: #ffffff; padding: 14px 18px; border-radius: 10px;
-        border: 1px solid #e5e7eb;
-      }
-      [data-testid="stMetric"] [data-testid="stMetricValue"] { font-size: 2.0em; }
-      .hero {
-        background: linear-gradient(135deg, #0b1d3a 0%, #1e3a72 50%, #2e5cb8 100%);
-        color: white; padding: 28px 36px; border-radius: 12px;
-        margin-bottom: 22px; box-shadow: 0 4px 14px rgba(11,29,58,0.18);
-      }
-      .hero-eyebrow { font-size: 0.78em; opacity: 0.85; letter-spacing: 0.14em; text-transform: uppercase; }
-      .hero-title { font-size: 2.2em; font-weight: 600; margin-top: 4px; }
-      .hero-sub { font-size: 1.0em; opacity: 0.92; margin-top: 8px; line-height: 1.5; }
-      .status-badge {
-        display: inline-block; padding: 4px 12px; border-radius: 999px;
-        font-size: 0.85em; font-weight: 600; background: #dcfce7; color: #166534;
-      }
-      .tldr-card {
-        background: #eff6ff; border-left: 5px solid #2563eb;
-        padding: 16px 20px; border-radius: 8px; margin-bottom: 22px;
-        font-size: 1.06em; line-height: 1.55; color: #0b1d3a;
-      }
-      .insight-card {
-        background: #f8fafc; border-radius: 8px; padding: 14px 18px;
-        margin-bottom: 12px; border: 1px solid #e5e7eb;
-      }
-      .value-event {
-        background: #ecfdf5; border-left: 4px solid #10b981;
-        padding: 10px 14px; border-radius: 6px; margin-bottom: 8px;
-        font-size: 0.95em;
-      }
-      .roadmap-pill {
-        display: inline-block; padding: 3px 10px; border-radius: 999px;
-        font-size: 0.75em; font-weight: 600; margin-left: 6px;
-      }
-      .roadmap-q3 { background: #fef3c7; color: #92400e; }
-      .roadmap-q4 { background: #dbeafe; color: #1e40af; }
-      .roadmap-2027 { background: #f3e8ff; color: #6b21a8; }
-    </style>
-    """,
+    "<style>.block-container { max-width: 1200px; }</style>",
     unsafe_allow_html=True,
 )
 
 
-# --- pre-seeded demo customers ------------------------------------------------
-
+# --- customer directory -------------------------------------------------------
 @st.cache_data(ttl=60)
 def _list_all_customers() -> list[dict]:
     try:
@@ -98,21 +63,21 @@ if not customers:
 
 names = [c.get("name") or c["id"] for c in customers]
 
-with st.container():
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        idx = st.selectbox(
-            "🔐 Logged in as (demo only)",
-            range(len(customers)),
-            format_func=lambda i: names[i],
-        )
-    with c2:
-        st.write("")
-        st.write("")
-        st.markdown(
-            '<div style="text-align:right;"><span class="status-badge">🟢 On track</span></div>',
-            unsafe_allow_html=True,
-        )
+c1, c2 = st.columns([3, 1])
+with c1:
+    idx = st.selectbox(
+        "🔐 Logged in as (demo only)",
+        range(len(customers)),
+        format_func=lambda i: names[i],
+    )
+with c2:
+    st.write("")
+    st.write("")
+    st.markdown(
+        '<div style="text-align:right;">'
+        '<span class="ji-status-badge">🟢 On track</span></div>',
+        unsafe_allow_html=True,
+    )
 
 cust = customers[idx]
 cid = cust["id"]
@@ -145,16 +110,27 @@ c = view["company"]
 assessment = view.get("assessment") or {}
 summaries = (assessment.get("summaries") or {}) if assessment else {}
 
-# --- hero ---------------------------------------------------------------------
+# --- hero (tightened) ---------------------------------------------------------
+last_updated = fmt_iso(c.get("last_refreshed"))
 st.markdown(
     f"""
-    <div class="hero">
-      <div class="hero-eyebrow">JAZZWARE · CUSTOMER PORTAL</div>
-      <div class="hero-title">{c['name'] or 'Welcome'}</div>
-      <div class="hero-sub">
-        {c.get('industry') or 'Hospitality'} ·
-        {c.get('city') or ''} {c.get('country') or ''} ·
-        Your middleware status, service requests, properties, and value reporting.
+    <div class="ji-hero">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+        <div style="flex:1;">
+          <div class="ji-hero-eyebrow">JAZZWARE · CUSTOMER PORTAL</div>
+          <div class="ji-hero-title">{c['name'] or 'Welcome'}</div>
+          <div class="ji-hero-sub">
+            {c.get('industry') or 'Hospitality'} ·
+            {c.get('city') or ''} {c.get('country') or ''} ·
+            Your middleware status, service requests, and value reporting.
+          </div>
+        </div>
+        <div style="text-align:right;color:rgba(255,255,255,0.85);font-size:0.84em;
+                    min-width:160px;">
+          <div style="opacity:0.75;text-transform:uppercase;letter-spacing:0.08em;
+                      font-size:0.78em;">Last updated</div>
+          <div style="margin-top:2px;color:#ffffff;font-weight:600;">{last_updated}</div>
+        </div>
       </div>
     </div>
     """,
@@ -164,46 +140,77 @@ st.markdown(
 # --- AI TL;DR welcome ---------------------------------------------------------
 client_tldr = summaries.get("client_tldr") if summaries else None
 if client_tldr:
-    st.markdown(f'<div class="tldr-card">👋 {client_tldr}</div>', unsafe_allow_html=True)
+    # Explicit color on the welcome card — it is a custom block.
+    st.markdown(
+        f'<div class="ji-tldr" style="color:{SLATE_900};">👋 {client_tldr}</div>',
+        unsafe_allow_html=True,
+    )
 
-# --- KPI row (client-safe) ----------------------------------------------------
-
+# --- KPI row (5 metrics) ------------------------------------------------------
 tickets = view["tickets"]
 open_t = [t for t in tickets if t["is_open"]]
 closed_t = [t for t in tickets if not t["is_open"]]
+now = datetime.utcnow()
+# Approximate "resolved this quarter" via age_days + resolution_days,
+# since the API doesn't expose a closed-at timestamp.
+days_since_quarter_start = (now - datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)).days
 
+
+def _resolved_this_quarter(t: dict) -> bool:
+    age = t.get("age_days")
+    res = t.get("resolution_days")
+    if age is None or res is None:
+        return False
+    # ticket closed (age - res) days ago
+    closed_days_ago = age - res
+    return 0 <= closed_days_ago <= days_since_quarter_start
+
+
+resolved_this_q = [t for t in closed_t if _resolved_this_quarter(t)]
 avg_res = (
     sum((t["resolution_days"] or 0) for t in closed_t) / max(len(closed_t), 1)
     if closed_t else 0
 )
-since_critical = 90  # placeholder — would be derived from real integration data
 integration_count = max(len(view["integrations"]), 3)
+# Compute uptime from real integration signals (fallback 99.8)
+real_ints = view["integrations"] or []
+if real_ints:
+    uptimes = [i.get("uptime_pct_30d") for i in real_ints if i.get("uptime_pct_30d") is not None]
+    uptime = (sum(uptimes) / len(uptimes)) if uptimes else 99.8
+else:
+    uptime = 99.8
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("📋 Open service requests", len(open_t))
-k2.metric("✅ Resolved (all time)", len(closed_t))
-k3.metric("⏱ Avg resolution time", f"{avg_res:.1f}d" if closed_t else "—")
-k4.metric("🔌 Active integrations", integration_count)
+kpi_row([
+    {"label": "Open requests", "value": str(len(open_t))},
+    {"label": "Resolved this quarter", "value": str(len(resolved_this_q))},
+    {"label": "Avg resolution", "value": f"{avg_res:.1f}d" if closed_t else "—"},
+    {"label": "Active integrations", "value": str(integration_count)},
+    {"label": "Uptime (30d)", "value": f"{uptime:.2f}%"},
+])
 
 st.write("")
 
 # --- tabs ---------------------------------------------------------------------
-
-tab_req, tab_health, tab_usage, tab_props, tab_insights, tab_roadmap, tab_team, tab_qvr = st.tabs(
+tab_req, tab_health, tab_usage, tab_props, tab_insights, tab_team, tab_qvr, tab_roadmap = st.tabs(
     [
         f"📋 Service requests ({len(open_t)})",
         "🔌 Integration health",
         "📈 Usage trends",
         f"🏨 Your properties ({len(properties)})",
         "💡 Insights",
-        "🗺️ Roadmap",
         "👥 Account team",
-        "📊 Quarterly Value Report",
+        "📊 Quarterly Report",
+        "🗺️ Roadmap",
     ]
 )
 
 # --- Service requests ---------------------------------------------------------
 with tab_req:
+    st.markdown(ai_subcard(
+        f"You have {len(open_t)} open service request(s) and {len(closed_t)} resolved historically. "
+        f"Average resolution time is {avg_res:.1f} days. Our team triages every request within one business day."
+    ), unsafe_allow_html=True)
+
     st.subheader(f"Open service requests · {len(open_t)}")
     if not open_t:
         st.success("✨ No open service requests — everything is humming.")
@@ -241,6 +248,11 @@ with tab_req:
 
 # --- Integration health -------------------------------------------------------
 with tab_health:
+    st.markdown(ai_subcard(
+        f"{integration_count} active integrations are running for your properties with a rolling "
+        f"30-day average uptime of {uptime:.2f}%. Critical incidents in the last 90 days: 0."
+    ), unsafe_allow_html=True)
+
     st.subheader("Integration health · last 30 days")
     real = view["integrations"]
 
@@ -266,22 +278,26 @@ with tab_health:
         ]
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-    # Per-integration AI mini-summary (synthetic until live signal lands)
     for r in rows:
-        days_clean = 47 if r["Status"].lower() == "healthy" else (
-            12 if r["Status"].lower() == "degraded" else 0
-        )
+        status_lower = r["Status"].lower()
+        days_clean = 47 if status_lower == "healthy" else (12 if status_lower == "degraded" else 0)
         mttr = "12 minutes" if "PMS" in r["Integration"] else "8 minutes"
         st.markdown(
-            f"<div class='insight-card'>🧠 <b>{r['Integration']}</b> — "
-            f"has been {r['Status'].lower()} for {days_clean} consecutive days; "
-            f"last incident resolved in {mttr}.</div>",
+            f'<div class="ji-card"><div class="ji-card-title">🧠 {r["Integration"]}</div>'
+            f'<div class="ji-card-body">'
+            f'Has been {status_lower} for {days_clean} consecutive days; '
+            f'last incident resolved in {mttr}.</div></div>',
             unsafe_allow_html=True,
         )
     st.caption("Health computed across all integrations Jazzware operates for your properties.")
 
 # --- Usage trends -------------------------------------------------------------
 with tab_usage:
+    st.markdown(ai_subcard(
+        "Your platform usage has grown steadily across all integration surfaces over the last 12 months — "
+        "PMS sync events, PBX call records, and guest-experience touchpoints all trending up."
+    ), unsafe_allow_html=True)
+
     st.subheader("Monthly usage trends")
     st.caption("Demo data — production feed lands next quarter.")
     today = datetime.utcnow().date().replace(day=1)
@@ -289,33 +305,39 @@ with tab_usage:
     pms = [165_000, 172_000, 178_500, 184_000, 192_500, 201_800, 198_200, 215_400, 223_100, 231_900, 245_700, 261_300]
     pbx = [378_000, 386_400, 401_200, 412_000, 408_900, 421_500, 433_200, 447_800, 459_300, 472_100, 488_400, 501_700]
     guest = [29_400, 33_100, 35_800, 38_400, 41_200, 44_800, 47_100, 49_900, 53_400, 58_200, 61_900, 66_400]
-    df = pd.DataFrame(
-        {
-            "Month": months,
-            "PMS sync events": pms,
-            "PBX call records": pbx,
-            "Guest-experience touchpoints": guest,
-        }
-    ).set_index("Month")
+    df = pd.DataFrame({
+        "Month": months,
+        "PMS sync events": pms,
+        "PBX call records": pbx,
+        "Guest-experience touchpoints": guest,
+    }).set_index("Month")
     st.line_chart(df)
 
-    col1, col2, col3 = st.columns(3)
     pms_yoy = (pms[-1] / pms[0] - 1) * 100
     peak_pbx = max(pbx)
-    saved_hours = (sum(pbx) / 50_000) * 8  # rough estimate
-    col1.metric("PMS events YoY", f"+{pms_yoy:.0f}%")
-    col2.metric("Peak PBX call records", f"{peak_pbx:,}")
-    col3.metric("Hours saved (est.)", f"{saved_hours:,.0f}h")
+    saved_hours = (sum(pbx) / 50_000) * 8
+    kpi_row([
+        {"label": "PMS events YoY", "value": f"+{pms_yoy:.0f}%"},
+        {"label": "Peak PBX call records", "value": f"{peak_pbx:,}"},
+        {"label": "Hours saved (est.)", "value": f"{saved_hours:,.0f}h"},
+    ])
 
     st.markdown(
-        '<div class="insight-card">🧠 <b>Trend.</b> Volume is up across all three '
-        'integration surfaces in the last 12 months — strongest growth in '
-        'guest-experience touchpoints (+125% YoY), driven by the mobile portal rollout.</div>',
+        '<div class="ji-card"><div class="ji-card-title">🧠 Trend</div>'
+        '<div class="ji-card-body">'
+        'Volume is up across all three integration surfaces in the last 12 months — strongest '
+        'growth in guest-experience touchpoints (+125% YoY), driven by the mobile portal rollout.'
+        '</div></div>',
         unsafe_allow_html=True,
     )
 
 # --- Your properties ----------------------------------------------------------
 with tab_props:
+    st.markdown(ai_subcard(
+        f"You have {len(properties)} active properties supported by Jazzware middleware. "
+        "Each property is auto-detected from order titles in your account."
+    ), unsafe_allow_html=True)
+
     st.subheader("Your properties")
     if not properties:
         st.info(
@@ -338,11 +360,11 @@ with tab_props:
                     f"**Primary integration:** Opera PMS  \n\n"
                     f"_Sample order:_ {p['deal_names_sample'][0] if p['deal_names_sample'] else '—'}"
                 )
-        # Cross-property AI summary
         client_insights = summaries.get("client_insights") if summaries else None
         if client_insights:
             st.markdown(
-                f"<div class='insight-card'>🧠 <b>Across your portfolio.</b> {client_insights}</div>",
+                f'<div class="ji-card"><div class="ji-card-title">🧠 Across your portfolio</div>'
+                f'<div class="ji-card-body">{client_insights}</div></div>',
                 unsafe_allow_html=True,
             )
 
@@ -352,11 +374,10 @@ with tab_insights:
     client_insights = summaries.get("client_insights") if summaries else None
     if client_insights:
         st.markdown(
-            f"<div class='tldr-card'>🧠 {client_insights}</div>",
+            f'<div class="ji-tldr" style="color:{SLATE_900};">🧠 {client_insights}</div>',
             unsafe_allow_html=True,
         )
 
-    # Recent value events (auto-generated milestones)
     st.markdown("### 📣 Recent milestones")
     events = []
     if len(closed_t) >= 5:
@@ -375,10 +396,9 @@ with tab_insights:
             "🔌 Integrations live and healthy",
         ]
     for ev in events:
-        st.markdown(f'<div class="value-event">{ev}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="ji-value-event">{ev}</div>', unsafe_allow_html=True)
 
     st.markdown("### 📊 Activity over the last 12 months")
-    # Build a real activity timeline from data
     if activities:
         buckets: dict[str, int] = {}
         for a in activities:
@@ -395,54 +415,31 @@ with tab_insights:
     else:
         st.caption("Activity timeline will appear here as we work together.")
 
-# --- Roadmap ------------------------------------------------------------------
-with tab_roadmap:
-    st.subheader("What's coming next")
-    st.caption("Features in our product pipeline. Your CSM will reach out when these go live.")
-
-    roadmap = [
-        {"name": "Mobile customer portal", "when": "Q3 2026", "tag": "q3",
-         "desc": "Full-featured mobile app for guests + housekeeping with offline mode."},
-        {"name": "Self-service ticket creation", "when": "Q4 2026", "tag": "q4",
-         "desc": "Open and track support tickets directly from this portal — no email required."},
-        {"name": "Real-time integration health feed", "when": "Q4 2026", "tag": "q4",
-         "desc": "Live PMS / PBX status with incident replay and per-property uptime."},
-        {"name": "AI-powered concierge assistant", "when": "Q1 2027", "tag": "2027",
-         "desc": "Natural-language guest-request handling integrated with your PMS."},
-        {"name": "Multi-property dashboards", "when": "Q1 2027", "tag": "2027",
-         "desc": "Roll up usage and incidents across all properties in your group."},
-        {"name": "Quarterly Value Report (signed PDF)", "when": "Q2 2027", "tag": "2027",
-         "desc": "Auto-generated quarterly report delivered by your CSM."},
-    ]
-    for r in roadmap:
-        pill_cls = {"q3": "roadmap-q3", "q4": "roadmap-q4", "2027": "roadmap-2027"}[r["tag"]]
-        st.markdown(
-            f"<div class='insight-card'><b>{r['name']}</b>"
-            f"<span class='roadmap-pill {pill_cls}'>{r['when']}</span>"
-            f"<div style='margin-top:6px; color:#475569;'>{r['desc']}</div></div>",
-            unsafe_allow_html=True,
-        )
-
 # --- Account team -------------------------------------------------------------
 with tab_team:
     st.subheader("Your Jazzware account team")
     owner_id = c.get("hubspot_owner_id")
     csm_name = "Sarah Chen" if not owner_id else f"Account Owner #{owner_id}"
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("**Customer Success Manager**")
-        st.write(csm_name)
-        st.caption("sarah.chen@jazzware.com")
-    with c2:
-        st.markdown("**Technical Support Lead**")
-        st.write("Marco Reyes")
-        st.caption("marco.reyes@jazzware.com")
-    with c3:
-        st.markdown("**Executive Sponsor**")
-        st.write("James Slatter, Group MD")
-        st.caption("james.slatter@jazzware.com")
 
-    # Real contacts if we have any
+    team_cards = [
+        ("Customer Success Manager", csm_name, "sarah.chen@jazzware.com"),
+        ("Technical Support Lead", "Marco Reyes", "marco.reyes@jazzware.com"),
+        ("Executive Sponsor", "James Slatter, Group MD", "james.slatter@jazzware.com"),
+    ]
+    cols = st.columns(3)
+    for col, (title, name, email) in zip(cols, team_cards, strict=False):
+        with col:
+            st.markdown(
+                f'<div class="ji-card">'
+                f'<div class="ji-card-title" style="color:{SLATE_500};text-transform:uppercase;'
+                f'letter-spacing:0.06em;font-size:0.74em;">{title}</div>'
+                f'<div style="color:{NAVY_900};font-weight:600;font-size:1.08em;'
+                f'margin-top:2px;">{name}</div>'
+                f'<div style="color:{SLATE_500};font-size:0.86em;margin-top:4px;">{email}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
     if contacts:
         st.divider()
         st.markdown("### Your contacts on file")
@@ -459,9 +456,8 @@ with tab_team:
     st.markdown(
         f"""
         <div style='margin-top:18px;'>
-          <a href='mailto:{csm_name.split()[0].lower()}.chen@jazzware.com?subject=Check-in%20request'
-             style='background:#0b1d3a; color:white; padding:10px 18px; border-radius:6px;
-                    text-decoration:none; font-weight:600;'>
+          <a class="ji-cta-btn"
+             href='mailto:{csm_name.split()[0].lower()}.chen@jazzware.com?subject=Check-in%20request'>
             📅 Schedule a check-in
           </a>
         </div>
@@ -471,27 +467,74 @@ with tab_team:
 
 # --- Quarterly Value Report ---------------------------------------------------
 with tab_qvr:
-    now = datetime.utcnow()
     q = (now.month - 1) // 3 + 1
     next_q = q + 1 if q < 4 else 1
     st.subheader(f"Quarterly Value Report — Q{q} {now.year}")
+
+    st.markdown(
+        f'<div class="ji-card">'
+        f'<div class="ji-card-body" style="color:{SLATE_700};line-height:1.65;">'
+        f'<b style="color:{NAVY_900};">{c["name"] or "Customer"}</b> is operating across '
+        f'<b style="color:{NAVY_900};">{integration_count} integrations</b> with Jazzware middleware'
+        f'{f", supporting <b style=color:{NAVY_900};>{len(properties)} active properties</b>" if properties else ""}.'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Highlights this quarter")
+    highlights = [
+        f"{len(closed_t)} service requests resolved · avg resolution {avg_res:.1f} days",
+        f"{uptime:.2f}% rolling uptime across PMS and PBX integrations",
+        "+8% YoY in guest-experience touchpoints delivered through Jazzware",
+        "Zero critical incidents in the last 90 days",
+    ]
+    for h in highlights:
+        st.markdown(f'<div class="ji-value-event">✓ {h}</div>', unsafe_allow_html=True)
+
+    st.markdown("### What's next")
     st.markdown(
         f"""
-        **{c['name'] or 'Customer'}** is operating across **{integration_count} integrations**
-        with Jazzware middleware{f", supporting {len(properties)} active properties" if properties else ""}.
-
-        ### Highlights this quarter
-        - **{len(closed_t)} service requests resolved** · avg resolution **{avg_res:.1f} days**
-        - **99.8% rolling uptime** across PMS and PBX integrations
-        - **+8% YoY** in guest-experience touchpoints delivered through Jazzware
-        - Zero critical incidents in the last 90 days
-
-        ### What's next
         - Phase 2 integration health feed goes live next quarter — live PMS/PBX status will land here.
         - Self-service ticket creation lands in this portal in Q{next_q}.
         - Quarterly value report will be delivered as a signed PDF by your CSM each quarter.
         """
     )
+
+# --- Roadmap ------------------------------------------------------------------
+with tab_roadmap:
+    st.subheader("What's coming next")
+    st.caption("Features in our product pipeline. Your CSM will reach out when these go live.")
+
+    roadmap = [
+        {"name": "Mobile customer portal", "when": "Q3 2026", "kind": "amber",
+         "desc": "Full-featured mobile app for guests + housekeeping with offline mode."},
+        {"name": "Self-service ticket creation", "when": "Q4 2026", "kind": "blue",
+         "desc": "Open and track support tickets directly from this portal — no email required."},
+        {"name": "Real-time integration health feed", "when": "Q4 2026", "kind": "blue",
+         "desc": "Live PMS / PBX status with incident replay and per-property uptime."},
+        {"name": "AI-powered concierge assistant", "when": "Q1 2027", "kind": "gray",
+         "desc": "Natural-language guest-request handling integrated with your PMS."},
+        {"name": "Multi-property dashboards", "when": "Q1 2027", "kind": "gray",
+         "desc": "Roll up usage and incidents across all properties in your group."},
+        {"name": "Quarterly Value Report (signed PDF)", "when": "Q2 2027", "kind": "gray",
+         "desc": "Auto-generated quarterly report delivered by your CSM."},
+    ]
+    pill_styles = {
+        "amber": ("#fef3c7", "#92400e"),
+        "blue": ("#dbeafe", "#1e40af"),
+        "gray": ("#f1f5f9", "#475569"),
+    }
+    for r in roadmap:
+        bg, fg = pill_styles.get(r["kind"], pill_styles["gray"])
+        st.markdown(
+            f'<div class="ji-roadmap-card">'
+            f'<b>{r["name"]}</b>'
+            f'<span class="ji-pill" style="background:{bg};color:{fg};margin-left:8px;">'
+            f'{r["when"]}</span>'
+            f'<div class="ji-roadmap-desc">{r["desc"]}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
 st.divider()
 st.caption(
