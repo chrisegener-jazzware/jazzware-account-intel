@@ -11,12 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy source before pip install -e: pyproject's `packages.find` over `src/`
+# requires the directory to exist at install time.
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
-
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
+RUN pip install --no-cache-dir -e .
 
 ENV PYTHONPATH=/app/src
 
