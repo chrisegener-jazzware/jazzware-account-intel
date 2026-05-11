@@ -17,6 +17,7 @@ COPY pyproject.toml ./
 COPY src ./src
 COPY alembic ./alembic
 COPY alembic.ini ./
+COPY .streamlit ./.streamlit
 RUN pip install --no-cache-dir -e .
 
 ENV PYTHONPATH=/app/src
