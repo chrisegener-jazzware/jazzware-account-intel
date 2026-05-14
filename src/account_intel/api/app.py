@@ -24,9 +24,17 @@ from ..db import (
 from ..feeders import HubSpotFeeder, extract_properties_from_deal_names
 from ..rollup import RollupService
 
+try:  # JAZ-180: mount health-digest router (pipeline + per-AM endpoints)
+    from health.api import router as health_router  # type: ignore
+except Exception:  # noqa: BLE001  -- health module optional in some envs
+    health_router = None  # type: ignore
+
 log = logging.getLogger(__name__)
 
 app = FastAPI(title="Jazzware Account Intel", version="0.2.0")
+
+if health_router is not None:
+    app.include_router(health_router)
 
 
 # --- DTOs ---------------------------------------------------------------------
